@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>得元產線管理系統</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        :root { --primary: #1a73e8; --secondary: #34a853; --danger: #d93025; --bg: #f8f9fa; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 10px; margin: 0; overflow-x: hidden; }
+        .container { width: 100%; margin: auto; max-width: 500px; transition: max-width 0.3s ease; }
+        .app-layout { display: flex; flex-direction: column; gap: 20px; }
+        .edit-section, .history-section { width: 100%; }
+
+        @media (min-width: 900px) {
+            body { padding: 20px; }
+            .container { max-width: 1200px; }
+            .app-layout { flex-direction: row; align-items: flex-start; }
+            .edit-section { flex: 0 0 450px; position: sticky; top: 20px; }
+            .history-section { flex: 1; }
+        }
+
+        .box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h3 { color: var(--primary); text-align: center; margin: 0 0 15px 0; }
+        .summary { background: #e8f0fe; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #d2e3fc; }
+        label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; font-weight: bold; }
+        input, select { width: 100%; max-width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 12px; font-family: inherit; background-color: #fff; }
+        input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 46px;}
+
+        .card { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 15px 12px 12px 12px; margin-bottom: 15px; position: relative; border-left: 5px solid var(--primary); }
+        .btn-del-card { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; padding: 4px 10px; border-radius: 6px; font-size: 12px; position: absolute; right: 10px; top: 10px; cursor: pointer; z-index: 10; font-weight: bold; }
+        .search-box { position: relative; margin-top: 25px; }
+        .row { display: flex; gap: 10px; align-items: flex-start; }
+        .col { flex: 1; min-width: 0; }
+        .date-input { border: 2px solid #ddd; border-radius: 6px; font-weight: bold; }
+        .over-deadline { border-color: var(--danger) !important; color: var(--danger) !important; background-color: #fff1f0; }
+        .alert-text { color: var(--danger); font-weight: bold; font-size: 12px; display: none; margin-top: 5px; }
+        
+        .btn { border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; color: white; margin-top: 10px; }
+        .btn-add { background: var(--primary); }
+        .btn-save { background: var(--secondary); margin-top: 20px; }
+        .btn-clear { background: #9e9e9e; }
+        
+        .autocomplete-list { position: absolute; z-index: 100; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .suggestion-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .suggestion-item.selected { background: #e8f0fe; border-left: 4px solid var(--primary); font-weight: bold; }
+        .p-name-input { background: #fffde7; border: 2px solid #fbc02d; font-weight: bold; }
+
+        .btn-check { background: #f1f3f4; color: #5f6368; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .btn-check.active { background: #e6f4ea; color: var(--secondary); border-color: #ceead6; }
+
+        .order-group { background: #fff; border: 1px solid #cce0ff; border-radius: 12px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: all 0.3s ease;}
+        .order-header { background: #e8f0fe; padding: 12px 15px; font-weight: bold; color: var(--primary); font-size: 15px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; user-select: none;}
+        .order-header:hover { background: #d2e3fc; }
+        .order-header-top { display: flex; justify-content: space-between; align-items: center; }
+        .order-header-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        
+        .drawing-list { padding: 10px; background: #fafafa; border-top: 2px solid #cce0ff; }
+        
+        .history-item { background: white; border-radius: 8px; margin-bottom: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; transition: all 0.2s;}
+        .history-item:last-child { margin-bottom: 0; }
+        .history-item-header { padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .history-item-header:hover { background: #fcfcfc; }
+        .history-dwg { font-weight: bold; font-size: 16px; color: #333; transition: color 0.2s;}
+        
+        .btn-del-hist { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold; margin-left: 10px;}
+        .btn-del-order { background: var(--danger); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold;}
+        .badge-alert { background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 5px; }
+        
+        .search-main-input { border: 2px solid var(--primary); padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; background: #fff; color: var(--primary); width: 100%; box-sizing: border-box; margin-bottom: 0;}
+        .multiplier-alert { display: none; background: #fffde7; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 15px; }
+
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 10000; left: 50%; bottom: 30px; font-size: 16px; font-weight: bold;
+            transform: translateX(-50%); opacity: 0; transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        #mergeModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 380px; padding: 25px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;
+        }
+
+        .urgent-card {
+            background: #fffaf9; border-left: 5px solid var(--danger); border-top: 1px solid #fee; border-right: 1px solid #fee; border-bottom: 1px solid #fee; 
+            margin-bottom: 8px; border-radius: 8px; overflow: hidden;
+            transition: background 0.2s;
+        }
+        .urgent-card-header { padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .urgent-card-header:hover { background: #ffebee; }
+
+        .process-dropdown { background: #fafafa; border-top: 1px dashed #ddd; padding: 12px; font-size: 14px; }
+        .inline-p-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dotted #ccc; flex-wrap: wrap; gap: 5px;}
+        .inline-p-row:last-child { border-bottom: none; }
+        .p-btn-check { padding: 5px 10px; border-radius: 6px; cursor: pointer; border: 1px solid #ddd; background: #fff; font-weight: bold; font-size: 12px; flex-shrink: 0;}
+        .p-btn-check.done { background: #e6f4ea; color: #137333; border-color: #81c995; }
+        .inline-edit-btn { width: 100%; padding: 10px; margin-top: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+
+        @media (max-width: 600px) {
+            .row { flex-direction: column; gap: 0px; }
+            .col { width: 100%; }
+            .mobile-stack { flex-direction: column !important; align-items: stretch !important; gap: 0 !important; }
+            .mobile-stack > div { width: 100%; }
+            .search-main-input { font-size: 14px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="toast">✅ 儲存成功！</div>
+
+        <div id="mergeModal">
+            <div class="modal-content">
+                <h3 style="margin-top:0; color:var(--danger); font-size:22px;">⚠️ 單號已存在</h3>
+                <p style="font-weight:bold; font-size:16px; margin: 15px 0;">系統發現工單【<span id="modalOrderIdText" style="color:var(--primary);"></span>】已存在！</p>
+                <p style="font-size:14px; color:#555; margin-bottom:25px;">請選擇您要將此新圖號直接併入，還是建立新單號？</p>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="confirmMerge(true)" style="flex:1; padding:12px; background:var(--secondary); color:white; border:none; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer;">✅ 直接併單</button>
+                    <button onclick="confirmMerge(false)" style="flex:1; padding:12px; background:#9e9e9e; color:white; border:none; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer;">🆕 新單(-1)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-layout">
+            
+            <div class="edit-section">
+                <div class="box">
+                    <h3>🏭 得元產線管理系統</h3>
+                    <div class="summary">
+                        <label>工單編號 / 客戶</label>
+                        <input type="text" id="orderId" placeholder="例如：U.3XK7">
+                        <label>🏁 要求交期 <span style="color:#1a73e8; font-weight:normal;">(系統會自動提前一工作天排程)</span></label>
+                        <input type="date" id="finalDeadline" onchange="checkAllDates()">
+                        <div id="globalAlert" style="color:var(--danger); font-weight:bold; display:none; text-align:center; margin-top:5px;">⚠️ 警告：排程已超期！</div>
+                        <hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+                        
+                        <div style="display:flex; gap:10px; align-items: flex-end;" class="mobile-stack">
+                            <div style="flex:2;">
+                                <label style="color:var(--primary); font-size:15px;">🆔 廠內圖號 (儲存後圖號保留)</label>
+                                <input type="text" id="drawingId" placeholder="輸入圖號" style="border: 2px solid var(--primary); margin-bottom: 0;">
+                            </div>
+                            <div style="flex:1;">
+                                <label style="color:var(--primary); font-size:15px;">📦 數量</label>
+                                <input type="text" id="orderQty" value="50" style="border: 2px solid var(--primary); margin-bottom: 0;" oninput="handleQtyChange()" placeholder="件數">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="multiplierToggleContainer" class="multiplier-alert">
+                        <label style="margin:0; display:flex; align-items:center; gap:8px; cursor:pointer; color:#856404; font-size:13px; font-weight:bold;">
+                            <input type="checkbox" id="applyMultiplierCheck" checked onchange="updateProcessDaysByQty()" style="width:18px; height:18px; margin:0; flex-shrink:0;">
+                            <span id="multiplierLabelText">是否自動依數量調整天數？</span>
+                        </label>
+                    </div>
+                    
+                    <div id="processList"></div>
+                    <button class="btn btn-add" onclick="addProcessCard()">＋ 新增製程</button>
+                    <button class="btn btn-save" id="saveBtn" onclick="saveOrder()">💾 儲存此圖號 (F1)</button>
+                    <button class="btn btn-clear" onclick="clearForm()">🗑️ 清空所有輸入欄位</button>
+                </div>
+            </div> 
+
+            <div class="history-section">
+                
+                <div id="urgentDashboard" style="display:none; margin-bottom: 25px;"></div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h3 style="margin: 0; border: none; padding: 0;">📋 全部工單狀態庫</h3>
+                    <button onclick="refreshPage()" style="background: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">🔄 重新整理資料</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="orderSearchInput" class="search-main-input" placeholder="🔍 搜尋工單或圖號..." oninput="renderHistory()" style="margin-bottom: 10px;">
+                    <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                        <select id="sortSelect" class="search-main-input" style="flex:1 1 120px; padding: 12px; min-width: 0;" onchange="renderHistory()">
+                            <option value="newest">🕒 最新下單排列</option>
+                            <option value="deadline">⏳ 交期快到排列</option>
+                        </select>
+                        <button onclick="printTodayProcesses()" class="search-main-input" style="flex:1 1 120px; padding: 12px; background:#fbc02d; color:#b71c1c; border:none; cursor:pointer; font-size:14px; min-width: 0;">🎯 印今日任務</button>
+                        <button onclick="printUrgent()" class="search-main-input" style="flex:1 1 120px; padding: 12px; background:var(--primary); color:white; border:none; cursor:pointer; font-size:14px; min-width: 0;">🖨️ 印近3日急件</button>
+                        <button onclick="printAllData()" class="search-main-input" style="flex:1 1 120px; padding: 12px; background:#34a853; color:white; border:none; cursor:pointer; font-size:14px; min-width: 0;">📋 印全資料總表</button>
+                    </div>
+                </div>
+
+                <div id="historyList" style="text-align:center; color:#888; padding:20px;">資料載入中...</div>
+            </div> 
+
+        </div> 
+    </div>
+
+<script>
+    // 🎯 這是重點！請把您在 Google Apps Script 複製的「網頁應用程式網址」貼在引號裡面！
+    const API_URL = "https://script.google.com/macros/s/AKfycbxfBzzr1iCIyknLOJFU8DFIc7MifZjR-LSH3ILgyGXOhIzEIQW2rmzSNy5I4hQ9w5dhpA/exec";
+
+    // 🎯 共用的 API 呼叫工具，完美取代原本的 google.script.run
+    async function fetchAPI(action, data = {}) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' } // 避開跨網域限制
+            });
+            const result = await response.json();
+            if (result.status === 'success') {
+                return result.data;
+            } else {
+                alert("雲端處理錯誤：" + result.message);
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error("連線錯誤：", error);
+            alert("連線失敗！請檢查您的網路，或確認 API_URL 網址是否正確貼上。");
+            throw error;
+        }
+    }
+
+    const processTemplate = [    
+        { name: "雷射沖孔", days: 0.5 }, { name: "折彎", days: 0.3 }, { name: "抽孔", days: 0.5 },
+        { name: "攻牙", days: 0.5 }, { name: "鉚釘", days: 0.5 }, { name: "點焊", days: 0.5 },
+        { name: "燒焊", days: 0.5 }, { name: "研磨", days: 0.5 }, { name: "髮線", days: 0.5 },
+        { name: "銑床", days: 3 }, { name: "烤漆", days: 2.2 }, { name: "電鍍鎳", days: 2.2 },
+        { name: "電鍍五彩", days: 2.2 }, { name: "電鍍白鋅", days: 2.2 }, { name: "陽極", days: 2.2 },
+        { name: "貼防烤", days: 0.3 }, { name: "印刷", days: 1.5 }, { name: "噴砂", days: 1.5 },
+        { name: "電解拋光", days: 2.2 }, { name: "鈍化", days: 2.2 }, { name: "震動研磨", days: 2.2 },
+        { name: "組立(鎖固)", days: 0.5 }, { name: "拋光", days: 2.2 }, { name: "沖壓便模", days: 2.2 },
+        { name: "雷射補割", days: 0.5 }, { name: "滑孔", days: 0.5 }, { name: "補鑽孔", days: 0.5 },
+        { name: "段差", days: 0.5 }, { name: "二次折彎", days: 0.5 }, { name: "二次鉚釘", days: 0.5 },
+        { name: "拉釘", days: 0.5 }, { name: "植釘", days: 2.2 }, { name: "裁切", days: 0.5 },
+        { name: "外發雷雕", days: 2.2 }, { name: "電鍍黑", days: 2.2 }, { name: "NCT夾沖", days: 0.5 },
+        { name: "塗銀漆", days: 1.5 }, { name: "皮膜處裡", days: 0.8 }, { name: "組裝(拉釘)", days: 0.5 },
+        { name: "酪酸鹽", days: 3 }, { name: "蝕刻", days: 2.2 }, 
+        { name: "外發", days: 2.2 }, { name: "外購", days: 3.7 }, { name: "品檢+包裝", days: 0.5 }
+    ];
+
+    let currentFocus = -1;
+    let globalCloudData = []; 
+    let autoMergeOrders = []; 
+    let pendingSaveData = null; 
+    
+    let openOrderIds = new Set();
+    let closedOrderIds = new Set(); 
+    let openDropdownRowIndexes = new Set();
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's')) {
+            e.preventDefault(); 
+            if (!document.getElementById('saveBtn').disabled) saveOrder();
+        }
+    });
+
+    function showToast(msg) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.className = "show";
+        setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
+    }
+
+    function refreshPage() {
+        const list = document.getElementById('historyList');
+        list.innerHTML = "<div style='padding:20px; color:#1a73e8; font-weight:bold; font-size: 16px;'>🔄 重新連線雲端中，請稍候...</div>";
+        loadHistory();
+    }
+
+    function handleQtyChange() {
+        let qty = parseInt(document.getElementById('orderQty').value) || 1;
+        let toggleContainer = document.getElementById('multiplierToggleContainer');
+        let labelText = document.getElementById('multiplierLabelText');
+        
+        if (qty >= 150) {
+            toggleContainer.style.display = 'block';
+            labelText.innerHTML = `數量較大，自動加倍製程天數？<br>(150件=1.5倍 / 300件=2倍)`;
+        } else if (qty < 40) {
+            toggleContainer.style.display = 'block';
+            labelText.innerHTML = `數量較少，自動減半製程天數？<br>(小於40件 = 0.5倍)`;
+        } else {
+            toggleContainer.style.display = 'none';
+        }
+        updateProcessDaysByQty();
+    }
+
+    function getMultiplier(qty) {
+        let apply = document.getElementById('applyMultiplierCheck').checked;
+        if (!apply) return 1.0;
+        if (qty >= 300) return 2.0;       
+        if (qty >= 150) return 1.5;       
+        if (qty < 40) return 0.5;         
+        return 1.0;                       
+    }
+
+    function updateProcessDaysByQty() {
+        let qty = parseInt(document.getElementById('orderQty').value) || 1;
+        let baseMultiplier = getMultiplier(qty);
+        
+        let cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            let nameInput = card.querySelector('.p-name-input').value;
+            if (!nameInput) return; 
+            let templateMatch = processTemplate.find(p => p.name === nameInput);
+            if (templateMatch) {
+                let currentMultiplier = baseMultiplier;
+                if (templateMatch.name === "品檢+包裝" && currentMultiplier > 1) {
+                    currentMultiplier = 1.0;
+                }
+                let calcDays = Math.round((templateMatch.days * currentMultiplier) * 10) / 10;
+                card.querySelector('.p-days').value = calcDays;
+            }
+        });
+        checkAllDates(document.getElementById('finalDeadline'));
+    }
+
+    function addProcessCard(initName = "", initDays = 0, initDate = "", initCompleted = false) {
+        const list = document.getElementById('processList');
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+            <button class="btn-del-card" onclick="this.parentElement.remove(); checkAllDates();" tabindex="-1">✕</button>
+            <div class="search-box">
+                <input type="text" class="p-name-input" value="${initName}" placeholder="輸入製程 (Enter直接換行 / Tab修改天數)" oninput="showSuggestions(this)" onkeydown="handleKeyNavigation(event, this)">
+                <div class="autocomplete-list"></div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>天數 <span class="hour-hint" style="color:var(--primary); font-size:12px; font-weight:normal; margin-left:4px;"></span></label>
+                    <input type="text" class="p-days" value="${initDays}" oninput="checkAllDates()" onkeydown="handleDaysKey(event, this)">
+                </div>
+                <div class="col"><label>預計完成日</label>
+                    <input type="date" class="date-input" value="${initDate}" onchange="checkAllDates(this)" tabindex="-1">
+                    <div class="alert-text">⚠️ 急！超期</div>
+                </div>
+            </div>
+            <input type="hidden" class="p-completed" value="${initCompleted}">`;
+        list.appendChild(div);
+        
+        if(!initName) {
+            setTimeout(() => {
+                const inputEl = div.querySelector('.p-name-input');
+                if(inputEl) inputEl.focus();
+            }, 10); 
+        }
+        
+        if(!initDate) checkAllDates();
+        return div;
+    }
+
+    window.lastNavKey = ""; 
+
+    function handleKeyNavigation(e, input) {
+        const list = input.nextElementSibling;
+        const items = list.getElementsByClassName("suggestion-item");
+        
+        if (list.style.display !== "block") {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                let cards = document.querySelectorAll('.card');
+                let thisCard = input.closest('.card');
+                if (thisCard === cards[cards.length - 1]) addProcessCard();
+                else thisCard.nextElementSibling.querySelector('.p-name-input').focus();
+            }
+            return;
+        }
+        
+        if (e.key === "ArrowDown") { 
+            e.preventDefault(); currentFocus++; addActive(items); 
+        }
+        else if (e.key === "ArrowUp") { 
+            e.preventDefault(); currentFocus--; addActive(items); 
+        }
+        else if (e.key === "Enter" || e.key === "Tab") { 
+            e.preventDefault(); 
+            window.lastNavKey = e.key; 
+            if (currentFocus > -1 && items[currentFocus]) items[currentFocus].click(); 
+            else if (items.length > 0) items[0].click(); 
+        }
+    }
+
+    function handleDaysKey(e, input) {
+        if (e.key === "Enter" || e.key === "Tab") {
+            e.preventDefault();
+            const cards = document.querySelectorAll('.card');
+            const thisCard = input.closest('.card');
+            if (thisCard === cards[cards.length - 1]) {
+                addProcessCard();   
+            } else {
+                let nextCard = thisCard.nextElementSibling;
+                if(nextCard) nextCard.querySelector('.p-name-input').focus();
+            }
+        }
+    }
+
+    function addActive(items) {
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) items[i].classList.remove("selected");
+        if (currentFocus >= items.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = items.length - 1;
+        items[currentFocus].classList.add("selected");
+        items[currentFocus].scrollIntoView({ block: "nearest" });
+    }
+
+    function showSuggestions(input) {
+        const val = input.value.toUpperCase();
+        const list = input.nextElementSibling;
+        list.innerHTML = ""; currentFocus = -1;
+        if (!val) { list.style.display = "none"; return; }
+        const matches = processTemplate.filter(p => p.name.toUpperCase().includes(val));
+        if (matches.length > 0) {
+            matches.forEach(m => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerText = m.name + " (" + m.days + "天)";
+                item.onclick = () => {
+                    input.value = m.name;
+                    
+                    let qty = parseInt(document.getElementById('orderQty').value) || 1;
+                    let baseMultiplier = getMultiplier(qty);
+                    let currentMultiplier = baseMultiplier;
+                    if (m.name === "品檢+包裝" && currentMultiplier > 1) {
+                        currentMultiplier = 1.0;
+                    }
+                    let calcDays = Math.round((m.days * currentMultiplier) * 10) / 10;
+                    
+                    let daysInput = input.closest('.card').querySelector('.p-days');
+                    daysInput.value = calcDays;
+                    list.style.display = "none";
+                    checkAllDates();
+                    
+                    if (window.lastNavKey === "Enter") {
+                        let cards = document.querySelectorAll('.card');
+                        let thisCard = input.closest('.card');
+                        if (thisCard === cards[cards.length - 1]) {
+                            addProcessCard(); 
+                        } else {
+                            setTimeout(() => {
+                                let nextCard = thisCard.nextElementSibling;
+                                if(nextCard) nextCard.querySelector('.p-name-input').focus();
+                            }, 10);
+                        }
+                    } else {
+                        setTimeout(() => { daysInput.focus(); }, 10);
+                    }
+                    window.lastNavKey = ""; 
+                };
+                list.appendChild(item);
+            });
+            list.style.display = "block";
+        }
+    }
+
+    function getDailyCapacity(dateObj) {
+        const day = dateObj.getDay();
+        if (day === 0) return 0; 
+        if (day === 5 || day === 6) return 8; 
+        return 11; 
+    }
+
+    function checkAllDates(changedInput, onlyValidate = false) {
+        const deadline = document.getElementById('finalDeadline').value;
+        const cards = Array.from(document.querySelectorAll('.card'));
+        if (!deadline || cards.length === 0) return;
+
+        if (!onlyValidate) {
+            if (!changedInput || changedInput.id === "finalDeadline") {
+                let currD = new Date(deadline + 'T00:00:00');
+                currD.setDate(currD.getDate() - 1); 
+                while (getDailyCapacity(currD) === 0) currD.setDate(currD.getDate() - 1);
+                let currH = getDailyCapacity(currD);
+
+                for (let i = cards.length - 1; i >= 0; i--) {
+                    const y = currD.getFullYear(); const m = String(currD.getMonth() + 1).padStart(2, '0'); const d = String(currD.getDate()).padStart(2, '0');
+                    cards[i].querySelector('.date-input').value = `${y}-${m}-${d}`;
+                    let daysInput = parseFloat(cards[i].querySelector('.p-days').value) || 0;
+                    let taskH = daysInput * 11; 
+
+                    while (taskH > 0) {
+                        if (currH <= 0) {
+                            currD.setDate(currD.getDate() - 1);
+                            currH = getDailyCapacity(currD);
+                        } else if (taskH <= currH) {
+                            currH -= taskH; taskH = 0;
+                        } else {
+                            taskH -= currH;
+                            currD.setDate(currD.getDate() - 1);
+                            currH = getDailyCapacity(currD);
+                        }
+                    }
+                    while (currH <= 0 || getDailyCapacity(currD) === 0) {
+                        currD.setDate(currD.getDate() - 1);
+                        currH = getDailyCapacity(currD);
+                    }
+                }
+            } 
+            else if (changedInput.classList.contains('date-input')) {
+                const idx = cards.findIndex(c => c.contains(changedInput));
+                let currD = new Date(changedInput.value + 'T00:00:00');
+                currD.setDate(currD.getDate() + 1);
+                while (getDailyCapacity(currD) === 0) currD.setDate(currD.getDate() + 1);
+                let currH = getDailyCapacity(currD);
+
+                for (let i = idx + 1; i < cards.length; i++) {
+                    let daysInput = parseFloat(cards[i].querySelector('.p-days').value) || 0;
+                    let taskH = daysInput * 11;
+
+                    while (taskH > 0) {
+                        if (currH <= 0) {
+                            currD.setDate(currD.getDate() + 1);
+                            currH = getDailyCapacity(currD);
+                        } else if (taskH <= currH) {
+                            currH -= taskH; taskH = 0;
+                        } else {
+                            taskH -= currH;
+                            currD.setDate(currD.getDate() + 1);
+                            currH = getDailyCapacity(currD);
+                        }
+                    }
+                    while (getDailyCapacity(currD) === 0) {
+                        currD.setDate(currD.getDate() + 1);
+                        currH = getDailyCapacity(currD);
+                    }
+                    const y = currD.getFullYear(); const m = String(currD.getMonth() + 1).padStart(2, '0'); const d = String(currD.getDate()).padStart(2, '0');
+                    cards[i].querySelector('.date-input').value = `${y}-${m}-${d}`;
+                }
+            }
+        }
+
+        const targetDate = new Date(deadline);
+        cards.forEach(card => {
+            const dInput = card.querySelector('.date-input');
+            const alertMsg = card.querySelector('.alert-text');
+            const dayVal = parseFloat(card.querySelector('.p-days').value) || 0;
+            const hintSpan = card.querySelector('.hour-hint');
+            
+            if (hintSpan) {
+                if (dayVal > 0) {
+                    let totalHrs = Number((dayVal * 11).toFixed(2));
+                    hintSpan.innerText = `(${totalHrs}小時)`;
+                } else {
+                    hintSpan.innerText = "";
+                }
+            }
+
+            if (new Date(dInput.value) > targetDate) {
+                dInput.classList.add("over-deadline"); alertMsg.style.display = "block"; 
+            } else {
+                dInput.classList.remove("over-deadline"); alertMsg.style.display = "none";
+            }
+        });
+        
+        const isAnyOver = Array.from(cards).some(c => c.querySelector('.date-input').classList.contains("over-deadline"));
+        document.getElementById('globalAlert').style.display = isAnyOver ? "block" : "none";
+    }
+
+    function saveOrder() {
+        let orderId = document.getElementById('orderId').value.trim();
+        const dwgId = document.getElementById('drawingId').value.trim();
+        const dl = document.getElementById('finalDeadline').value;
+        const qty = document.getElementById('orderQty').value; 
+        if(!orderId || !dwgId || !dl) { alert("工單、圖號、交期不可空白！"); return; }
+        
+        const processes = Array.from(document.querySelectorAll('.card')).filter(c => c.querySelector('.p-name-input').value !== "").map(c => ({
+                name: c.querySelector('.p-name-input').value,
+                days: c.querySelector('.p-days').value,
+                manualDate: c.querySelector('.date-input').value,
+                isCompleted: c.querySelector('.p-completed').value === 'true'
+            }));
+
+        pendingSaveData = { id: orderId, drawingId: dwgId, deadline: dl, processes: processes, qty: qty };
+        
+        if (globalCloudData && globalCloudData.length > 0) {
+            const existingOrders = globalCloudData.filter(o => String(o.id).toUpperCase() === orderId.toUpperCase());
+            if (existingOrders.length > 0) {
+                const isUpdatingDwg = existingOrders.some(o => String(o.drawingId).toUpperCase() === dwgId.toUpperCase());
+                
+                if (isUpdatingDwg) {
+                    if(!confirm(`⚠️ 系統發現這張圖號【${dwgId}】已經存在於該工單中！\n按「確定」將直接覆蓋更新舊資料。`)) {
+                        return; 
+                    }
+                } 
+                else if (!autoMergeOrders.includes(orderId.toUpperCase())) {
+                    document.getElementById('modalOrderIdText').innerText = orderId;
+                    document.getElementById('mergeModal').style.display = 'flex'; 
+                    return; 
+                }
+            }
+        }
+        executeSave();
+    }
+
+    function confirmMerge(isMerge) {
+        document.getElementById('mergeModal').style.display = 'none';
+        let baseId = pendingSaveData.id;
+
+        if (isMerge) {
+            autoMergeOrders.push(baseId.toUpperCase());
+            executeSave();
+        } else {
+            let suffix = 1;
+            let newId = `${baseId}-${suffix}`;
+            while (globalCloudData.some(o => String(o.id).toUpperCase() === newId.toUpperCase())) {
+                suffix++;
+                newId = `${baseId}-${suffix}`;
+            }
+            pendingSaveData.id = newId;
+            document.getElementById('orderId').value = newId; 
+            autoMergeOrders.push(newId.toUpperCase()); 
+            executeSave();
+        }
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function executeSave() {
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true; btn.innerText = "同步中...";
+        
+        globalCloudData = globalCloudData.filter(o => !(String(o.id).toUpperCase() === pendingSaveData.id.toUpperCase() && String(o.drawingId).toUpperCase() === pendingSaveData.drawingId.toUpperCase()));
+        globalCloudData.push(pendingSaveData); 
+        
+        openOrderIds.add(String(pendingSaveData.id)); 
+        closedOrderIds.delete(String(pendingSaveData.id));
+
+        fetchAPI('saveOrder', pendingSaveData).then(msg => { 
+            showToast("✅ 已同步至雲端！"); 
+            btn.disabled = false; btn.innerText = "💾 儲存此圖號 (F1)"; 
+            document.getElementById('processList').innerHTML = "";
+            addProcessCard();
+            
+            renderUrgentList();
+            renderHistory(); 
+            
+            setTimeout(()=> document.getElementById('drawingId').focus(), 10);
+        });
+    }
+
+    function printUrgent() {
+        if (!globalCloudData || globalCloudData.length === 0) {
+            alert("目前沒有資料可以列印！"); return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let printItems = [];
+
+        globalCloudData.forEach(d => {
+            if (d.status === "COMPLETED") return; 
+            
+            let dDate = new Date(d.deadline);
+            dDate.setHours(0, 0, 0, 0);
+            
+            let workDaysDiff = 0;
+            let tempDate = new Date(today);
+            
+            if (dDate > today) {
+                while (tempDate < dDate) {
+                    tempDate.setDate(tempDate.getDate() + 1);
+                    if (tempDate.getDay() !== 0) workDaysDiff++;
+                }
+            } else if (dDate < today) {
+                while (tempDate > dDate) {
+                    tempDate.setDate(tempDate.getDate() - 1);
+                    if (tempDate.getDay() !== 0) workDaysDiff--;
+                }
+            }
+            
+            if (workDaysDiff <= 3) {
+                let allProcessesHtml = "";
+                if (d.processes && d.processes.length > 0) {
+                    let pList = d.processes.map((p) => {
+                        let isDone = (p.isCompleted === true || p.isCompleted === "true");
+                        if (isDone) {
+                            return `<span class="p-badge done">✔️ ${p.name}</span>`;
+                        } else {
+                            return `<span class="p-badge pending">⭕ ${p.name}</span>`;
+                        }
+                    });
+                    allProcessesHtml = `<div class="p-container">` + pList.join(`<span class="p-arrow">➔</span>`) + `</div>`;
+                } else {
+                    allProcessesHtml = "<span style='color:#888;'>無製程紀錄</span>";
+                }
+                
+                printItems.push({ ...d, daysDiff: workDaysDiff, allProcessesHtml: allProcessesHtml });
+            }
+        });
+
+        if (printItems.length === 0) {
+            alert("目前沒有 3 日內的未完工急件需要列印！"); return;
+        }
+
+        printItems.sort((a, b) => a.daysDiff - b.daysDiff);
+
+        let printWindow = window.open('', '_blank');
+        let html = `
+            <html>
+            <head>
+                <title>得元產線 - 近 3 日急件清單</title>
+                <style>
+                    @page { size: A4 portrait; margin: 12mm; }
+                    body { font-family: "Microsoft JhengHei", sans-serif; padding: 0; margin: 0; }
+                    h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 5px; }
+                    p.time-stamp { text-align: right; color: #555; margin-top: 0; font-size: 13px;}
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;}
+                    th, td { border: 1px solid #333; padding: 8px 6px; text-align: center; vertical-align: middle; }
+                    th { background: #f0f0f0; }
+                    td.left { text-align: left; }
+                    .overdue { color: #d93025; font-weight: bold; }
+                    .today { font-weight: bold; text-decoration: underline; }
+                    
+                    .p-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
+                    .p-badge { display: inline-block; white-space: nowrap; padding: 3px 8px; border-radius: 6px; font-size: 13px; border: 1px solid #ddd;}
+                    
+                    .p-badge.done { background: #e6f4ea; color: #1e8e3e; font-weight: bold; border-color: #81c995; }
+                    .p-badge.pending { background: #fff; color: #333; border-color: #ccc; }
+                    
+                    .p-arrow { display: inline-block; color: #ccc; font-size: 10px; margin: 0 4px; align-self: center;}
+                </style>
+            </head>
+            <body>
+                <h2>🏭 得元產線 - 近 3 日未完工急件進度總表</h2>
+                <p class="time-stamp">列印時間：${new Date().toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="10%">狀態</th>
+                            <th width="18%">廠內圖號</th>
+                            <th width="6%">數量</th>
+                            <th width="10%">要求交期</th>
+                            <th width="56%">目前製程與進度追蹤</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        printItems.forEach(item => {
+            let diffText = item.daysDiff < 0 ? `<span class="overdue">超期 ${Math.abs(item.daysDiff)} 天</span>` : 
+                           (item.daysDiff === 0 ? `<span class="today">今天出貨</span>` : `剩 ${item.daysDiff} 天`);
+            html += `
+                <tr>
+                    <td>${diffText}</td>
+                    <td><strong>${item.drawingId}</strong></td>
+                    <td>${item.qty}</td>
+                    <td>${item.deadline}</td>
+                    <td class="left">${item.allProcessesHtml}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+                <script>
+                    window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+                <\/script>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+    }
+
+    function printTodayProcesses() {
+        if (!globalCloudData || globalCloudData.length === 0) {
+            alert("目前沒有資料可以列印！"); return;
+        }
+
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
+        let printItems = [];
+
+        globalCloudData.forEach(order => {
+            if (order.status === "COMPLETED") return;
+
+            if (order.processes && order.processes.length > 0) {
+                let dueTodayProcs = order.processes.filter(p => {
+                    let isDone = (p.isCompleted === true || p.isCompleted === "true");
+                    return p.manualDate === todayStr && !isDone;
+                });
+
+                if (dueTodayProcs.length > 0) {
+                    printItems.push({
+                        id: order.id,
+                        drawingId: order.drawingId,
+                        qty: order.qty,
+                        deadline: order.deadline,
+                        dueProcesses: dueTodayProcs.map(p => p.name)
+                    });
+                }
+            }
+        });
+
+        if (printItems.length === 0) {
+            alert(`🎉 太棒了！今天 (${todayStr}) 沒有尚未完工的特定製程任務！`); 
+            return;
+        }
+
+        let printWindow = window.open('', '_blank');
+        let html = `
+            <html>
+            <head>
+                <title>得元產線 - 今日應完工製程</title>
+                <style>
+                    @page { size: A4 portrait; margin: 12mm; }
+                    body { font-family: "Microsoft JhengHei", sans-serif; padding: 0; margin: 0; }
+                    h2 { text-align: center; border-bottom: 2px solid #b71c1c; padding-bottom: 10px; margin-bottom: 5px; color: #b71c1c;}
+                    p.time-stamp { text-align: right; color: #555; margin-top: 0; font-size: 12px;}
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;}
+                    th, td { border: 1px solid #333; padding: 8px 6px; text-align: center; vertical-align: middle; }
+                    th { background: #f0f0f0; }
+                    td.left { text-align: left; }
+                    .proc-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
+                    .highlight-proc { background: #fffde7; border: 1px solid #fbc02d; color: #b71c1c; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; white-space: nowrap;}
+                </style>
+            </head>
+            <body>
+                <h2>🎯 得元產線 - ${todayStr} 今日必達任務表</h2>
+                <p class="time-stamp">列印時間：${now.toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="20%">廠內圖號</th>
+                            <th width="15%">工單編號</th>
+                            <th width="8%">數量</th>
+                            <th width="12%">最終交期</th>
+                            <th width="45%">📌 今日必須完成之製程 (尚未打卡)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        printItems.forEach(item => {
+            let procHtml = `<div class="proc-container">` + item.dueProcesses.map(pName => `<span class="highlight-proc">⭕ ${pName}</span>`).join("") + `</div>`;
+            html += `
+                <tr>
+                    <td><strong style="font-size: 14px;">${item.drawingId}</strong></td>
+                    <td>${item.id}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.deadline}</td>
+                    <td class="left">${procHtml}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+                <script>
+                    window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+                <\/script>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+    }
+
+    function printAllData() {
+        if (!globalCloudData || globalCloudData.length === 0) {
+            alert("目前沒有資料可以列印！"); return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let printItems = [];
+
+        globalCloudData.forEach(d => {
+            if (d.status === "COMPLETED") return; 
+            
+            let dDate = new Date(d.deadline);
+            dDate.setHours(0, 0, 0, 0);
+            
+            let workDaysDiff = 0;
+            let tempDate = new Date(today);
+            
+            if (dDate > today) {
+                while (tempDate < dDate) {
+                    tempDate.setDate(tempDate.getDate() + 1);
+                    if (tempDate.getDay() !== 0) workDaysDiff++;
+                }
+            } else if (dDate < today) {
+                while (tempDate > dDate) {
+                    tempDate.setDate(tempDate.getDate() - 1);
+                    if (tempDate.getDay() !== 0) workDaysDiff--;
+                }
+            }
+            
+            let allProcessesHtml = "";
+            if (d.processes && d.processes.length > 0) {
+                let pList = d.processes.map((p) => {
+                    let isDone = (p.isCompleted === true || p.isCompleted === "true");
+                    if (isDone) {
+                        return `<span class="p-badge done">✔️ ${p.name}</span>`;
+                    } else {
+                        return `<span class="p-badge pending">⭕ ${p.name}</span>`;
+                    }
+                });
+                allProcessesHtml = `<div class="p-container">` + pList.join(`<span class="p-arrow">➔</span>`) + `</div>`;
+            } else {
+                allProcessesHtml = "<span style='color:#888;'>無製程紀錄</span>";
+            }
+            
+            printItems.push({ ...d, daysDiff: workDaysDiff, allProcessesHtml: allProcessesHtml });
+        });
+
+        if (printItems.length === 0) {
+            alert("目前沒有未完工的資料需要列印！"); return;
+        }
+
+        printItems.sort((a, b) => a.daysDiff - b.daysDiff);
+
+        let printWindow = window.open('', '_blank');
+        let html = `
+            <html>
+            <head>
+                <title>得元產線 - 產線全資料總表</title>
+                <style>
+                    @page { size: A4 portrait; margin: 12mm; }
+                    body { font-family: "Microsoft JhengHei", sans-serif; padding: 0; margin: 0; }
+                    h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 5px; }
+                    p.time-stamp { text-align: right; color: #555; margin-top: 0; font-size: 13px;}
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;}
+                    th, td { border: 1px solid #333; padding: 8px 6px; text-align: center; vertical-align: middle; }
+                    th { background: #f0f0f0; }
+                    td.left { text-align: left; }
+                    .overdue { color: #d93025; font-weight: bold; }
+                    .today { font-weight: bold; text-decoration: underline; }
+                    
+                    .p-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
+                    .p-badge { display: inline-block; white-space: nowrap; padding: 3px 8px; border-radius: 6px; font-size: 13px; border: 1px solid #ddd;}
+                    
+                    .p-badge.done { background: #e6f4ea; color: #1e8e3e; font-weight: bold; border-color: #81c995; }
+                    .p-badge.pending { background: #fff; color: #333; border-color: #ccc; }
+                    
+                    .p-arrow { display: inline-block; color: #ccc; font-size: 10px; margin: 0 4px; align-self: center;}
+                </style>
+            </head>
+            <body>
+                <h2>📋 得元產線 - 產線未完工全資料總表</h2>
+                <p class="time-stamp">列印時間：${new Date().toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="10%">狀態</th>
+                            <th width="18%">廠內圖號</th>
+                            <th width="6%">數量</th>
+                            <th width="10%">要求交期</th>
+                            <th width="56%">目前製程與進度追蹤</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        printItems.forEach(item => {
+            let diffText = item.daysDiff < 0 ? `<span class="overdue">超期 ${Math.abs(item.daysDiff)} 天</span>` : 
+                           (item.daysDiff === 0 ? `<span class="today">今天出貨</span>` : `剩 ${item.daysDiff} 天`);
+            html += `
+                <tr>
+                    <td>${diffText}</td>
+                    <td><strong>${item.drawingId}</strong></td>
+                    <td>${item.qty}</td>
+                    <td>${item.deadline}</td>
+                    <td class="left">${item.allProcessesHtml}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+                <script>
+                    window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+                <\/script>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+    }
+
+    function toggleOrder(orderId) {
+        const query = document.getElementById('orderSearchInput').value.toUpperCase().trim();
+        const orderIdStr = String(orderId);
+        
+        if (query !== "") {
+            if (closedOrderIds.has(orderIdStr)) {
+                closedOrderIds.delete(orderIdStr);
+            } else {
+                closedOrderIds.add(orderIdStr);
+            }
+        } else {
+            if (openOrderIds.has(orderIdStr)) {
+                openOrderIds.delete(orderIdStr);
+            } else {
+                openOrderIds.add(orderIdStr);
+            }
+        }
+        renderHistory();
+    }
+
+    function toggleInlineDropdown(e, rowIndex) {
+        if (e) e.stopPropagation();
+        if(openDropdownRowIndexes.has(rowIndex)) {
+            openDropdownRowIndexes.delete(rowIndex);
+        } else {
+            openDropdownRowIndexes.add(rowIndex);
+        }
+        renderUrgentList();
+        renderHistory();
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function toggleInlineProcess(e, rowIndex, processIndex) {
+        e.stopPropagation();
+        const btn = e.target;
+        btn.innerText = "更新中...";
+        btn.disabled = true;
+
+        let targetItem = globalCloudData.find(item => item.rowIndex === rowIndex);
+        if(!targetItem) return;
+
+        let currentStatus = targetItem.processes[processIndex].isCompleted;
+        targetItem.processes[processIndex].isCompleted = !(currentStatus === true || currentStatus === "true");
+
+        fetchAPI('saveOrder', targetItem).then(() => {
+            renderUrgentList();
+            renderHistory();
+        });
+    }
+
+    function loadToEditPanel(e, rowIndex) {
+        e.stopPropagation();
+        let d = globalCloudData.find(item => item.rowIndex === rowIndex);
+        if(!d) return;
+        
+        document.getElementById('orderId').value = d.id;
+        document.getElementById('drawingId').value = d.drawingId;
+        document.getElementById('finalDeadline').value = d.deadline;
+        document.getElementById('orderQty').value = d.qty || 50; 
+        
+        handleQtyChange(); 
+
+        document.getElementById('processList').innerHTML = "";
+        d.processes.forEach(p => addProcessCard(p.name, p.days, p.manualDate, p.isCompleted));
+        checkAllDates(null, true);
+        
+        if (window.innerWidth < 900) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function filterOrders() {
+        renderHistory();
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function toggleDrawingDone(e, rowIndex, currentStatus) {
+        e.stopPropagation(); 
+        e.target.innerText = "處理中..."; e.target.disabled = true;
+        fetchAPI('toggleDrawingStatus', { rowIndex: rowIndex, currentStatus: currentStatus }).then(() => { 
+            loadHistory(); 
+        });
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function toggleOrderDone(e, orderId, currentStatus) {
+        e.stopPropagation(); 
+        const isCompleting = (currentStatus !== "COMPLETED");
+        const msg = isCompleting 
+            ? `確定要將工單【${orderId}】底下的所有圖號，全部標示為「✅ 已結案」嗎？`
+            : `確定要將工單【${orderId}】「↩️ 取消結案」嗎？`;
+            
+        if(!confirm(msg)) return;
+        e.target.innerText = "處理中..."; e.target.disabled = true;
+        fetchAPI('toggleOrderStatus', { orderId: orderId, currentStatus: currentStatus }).then(() => { 
+            loadHistory(); 
+        });
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function deleteDrawingRow(e, rowIndex, dwgId) {
+        e.stopPropagation();
+        if(confirm(`刪除圖號 ${dwgId} 嗎？`)) {
+            fetchAPI('deleteOrder', { index: rowIndex }).then(() => {
+                loadHistory();
+            });
+        }
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function deleteWholeOrder(e, orderId) {
+        e.stopPropagation();
+        if(!confirm(`⚠️ 警告：確定要刪除整筆工單【${orderId}】及底下所有圖號嗎？\n此動作無法復原！`)) return;
+        e.target.innerText = "刪除中..."; e.target.disabled = true;
+        fetchAPI('deleteWholeOrder', { orderId: orderId }).then(() => { 
+            loadHistory(); 
+        });
+    }
+
+    // 🎯 替換掉原本的 google.script.run
+    function loadHistory() {
+        fetchAPI('getOrders').then(data => {
+            globalCloudData = data || [];
+            renderUrgentList(); 
+            renderHistory();    
+        });
+    }
+
+    function buildInlineProcessHtml(d) {
+        let processHtml = "";
+        if(d.processes && d.processes.length > 0) {
+            d.processes.forEach((p, pIdx) => {
+                let isDone = (p.isCompleted === true || p.isCompleted === "true");
+                let textStyle = isDone ? "text-decoration: line-through; color: #aaa;" : "color: #333;";
+                let btnClass = isDone ? "p-btn-check done" : "p-btn-check";
+                let btnText = isDone ? "✅ 完成" : "⭕ 打卡";
+                
+                let daysDisp = `${p.days}天`;
+                let pDaysNum = parseFloat(p.days) || 0;
+                if (pDaysNum > 0) {
+                    let hrs = Number((pDaysNum * 11).toFixed(2));
+                    daysDisp = `${p.days}天 <span style="color:#1a73e8;">(${hrs}小時)</span>`;
+                }
+
+                processHtml += `
+                    <div class="inline-p-row">
+                        <span style="${textStyle}; flex:1; min-width:0; margin-right:5px;">
+                            <span style="display:inline-block; width:20px; color:var(--primary); font-weight:bold;">${pIdx+1}.</span> 
+                            ${p.name} <span style="color:#888; font-size:11px; margin-left:4px;">${daysDisp}</span>
+                        </span>
+                        <span style="${textStyle}; font-family:monospace; margin-right:10px;">${p.manualDate}</span>
+                        <button class="${btnClass}" onclick="toggleInlineProcess(event, ${d.rowIndex}, ${pIdx})">${btnText}</button>
+                    </div>
+                `;
+            });
+            processHtml += `<button class="inline-edit-btn" onclick="loadToEditPanel(event, ${d.rowIndex})">📝 載入左側編輯製程</button>`;
+        } else {
+            processHtml += `<div style="color:#888; text-align:center; padding:10px;">無製程紀錄</div>`;
+        }
+        return processHtml;
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        if (!globalCloudData || globalCloudData.length === 0) { list.innerText = "目前雲端無紀錄"; return; }
+        
+        const query = document.getElementById('orderSearchInput').value.toUpperCase().trim();
+        const sortMode = document.getElementById('sortSelect').value;
+
+        const groupedOrders = {};
+        globalCloudData.forEach(o => {
+            if (!groupedOrders[o.id]) groupedOrders[o.id] = [];
+            groupedOrders[o.id].push(o);
+        });
+
+        let orderGroupsArray = Object.keys(groupedOrders).map(orderId => {
+            return {
+                orderId: orderId,
+                drawings: groupedOrders[orderId],
+                earliestDeadline: new Date(groupedOrders[orderId][0].deadline).getTime(),
+                maxRowIndex: Math.max(...groupedOrders[orderId].map(d => d.rowIndex))
+            };
+        });
+
+        if (sortMode === 'deadline') {
+            orderGroupsArray.sort((a, b) => a.earliestDeadline - b.earliestDeadline);
+        } else {
+            orderGroupsArray.sort((a, b) => b.maxRowIndex - a.maxRowIndex);
+        }
+
+        let html = "";
+        
+        orderGroupsArray.forEach(group => {
+            const orderId = group.orderId;
+            const drawings = group.drawings;
+            const orderDeadline = drawings[0].deadline;
+            
+            let matchOrder = String(orderId).toUpperCase().includes(query);
+            let matchDwg = false;
+            drawings.forEach(el => { if (String(el.drawingId).toUpperCase().includes(query)) matchDwg = true; });
+
+            if (query !== "" && !matchOrder && !matchDwg) return;
+
+            const isOrderCompleted = drawings.length > 0 && drawings.every(d => d.status === "COMPLETED");
+            
+            const orderIdStr = String(orderId);
+            const safeAttrId = orderIdStr.replace(/"/g, '&quot;');
+            const orderIdSafe = orderIdStr.replace(/'/g, "\\'");
+            
+            const orderGroupStyle = isOrderCompleted ? 'background: #f6fdf8; border: 2px solid #81c995;' : 'background: #fff; border: 1px solid #cce0ff;';
+            const headerStyle = isOrderCompleted ? 'background:#e6f4ea; color:#137333; border-bottom: 1px solid #ceead6;' : '';
+            const dateStyle = isOrderCompleted ? 'color:#137333;' : 'color:var(--danger);';
+            const statusArg = isOrderCompleted ? 'COMPLETED' : '';
+            const btnText = isOrderCompleted ? '↩️ 全部還原' : '✅ 全部完工';
+            const btnStyle = isOrderCompleted ? 'background:#fff; color:#137333; border: 1px solid #137333;' : '';
+
+            let isListOpen = false;
+            if (query !== "") {
+                if (closedOrderIds.has(orderIdStr)) {
+                    isListOpen = false;
+                } else if (openOrderIds.has(orderIdStr)) {
+                    isListOpen = true;
+                } else {
+                    isListOpen = matchDwg; 
+                }
+            } else {
+                isListOpen = openOrderIds.has(orderIdStr);
+            }
+
+            let displayStyle = isListOpen ? "display:block;" : "display:none;";
+            let iconText = isListOpen ? "▼" : "▶";
+
+            html += `
+            <div class="order-group" data-order-id="${safeAttrId}" style="${orderGroupStyle}">
+                <div class="order-header" style="${headerStyle}" data-id="${safeAttrId}" onclick="toggleOrder(this.getAttribute('data-id'))">
+                    <div class="order-header-top">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="toggle-icon">${iconText}</span>
+                            <span>📦 工單: ${orderId}</span>
+                        </div>
+                        <span style="font-size:13px; font-weight:normal;">交期: <span style="${dateStyle} font-weight:bold;">${orderDeadline}</span></span>
+                    </div>
+                    <div class="order-header-actions">
+                        <button class="btn-check" data-id="${safeAttrId}" onclick="toggleOrderDone(event, this.getAttribute('data-id'), '${statusArg}')" style="padding:4px 10px; font-size:12px; ${btnStyle}">${btnText}</button>
+                        ${isOrderCompleted ? `<button class="btn-del-order" data-id="${safeAttrId}" onclick="deleteWholeOrder(event, this.getAttribute('data-id'))">🗑️ 刪除整筆</button>` : ''}
+                    </div>
+                </div>
+                <div class="drawing-list" style="${displayStyle}">`;
+
+            drawings.forEach(d => {
+                const safeDwgId = String(d.drawingId).replace(/"/g, '&quot;');
+                let isOver = false;
+                const target = new Date(d.deadline);
+                if(d.processes) {
+                    d.processes.forEach(p => { 
+                        if(p.manualDate && new Date(p.manualDate) > target && p.isCompleted !== true && p.isCompleted !== 'true') isOver = true; 
+                    });
+                }
+
+                const isCompleted = d.status === "COMPLETED";
+                const dStatusArg = isCompleted ? "COMPLETED" : "";
+                const dBtnText = isCompleted ? "↩️ 還原" : "✅ 完工";
+                const dBtnStyle = isCompleted ? "background:#fff; color:#137333; border: 1px solid #137333;" : "background:#f1f3f4; color:#5f6368; border: 1px solid #ddd;";
+                
+                const itemBoxStyle = isCompleted ? "background:#e6f4ea; border: 2px solid #81c995;" : "background: white; border: 1px solid #ddd;";
+                const dwgTextStyle = isCompleted ? "color: #137333;" : "color: #333;";
+                const qtyTextStyle = isCompleted ? "color: #137333;" : "color: #1a73e8;";
+                
+                let isOpen = openDropdownRowIndexes.has(d.rowIndex);
+                let dIconText = isOpen ? '▼' : '▶';
+
+                html += `
+                    <div class="history-item" style="${itemBoxStyle} padding:0; flex-direction:column; align-items:stretch;">
+                        <div class="history-item-header" onclick="toggleInlineDropdown(event, ${d.rowIndex})">
+                            <div class="history-info" style="flex-grow:1;">
+                                <div class="history-dwg" style="${dwgTextStyle}">
+                                    <span style="color:var(--primary); font-size:12px; margin-right:5px;">${dIconText}</span>
+                                    📄 ${d.drawingId} <span style="font-size:13px; font-weight:normal; ${qtyTextStyle}">(${d.qty}件)</span> 
+                                    ${isOver && !isCompleted ? '<span class="badge-alert">急</span>' : ''}
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-check" style="padding:4px 8px; font-size:12px; ${dBtnStyle}" onclick="toggleDrawingDone(event, ${d.rowIndex}, '${dStatusArg}')">${dBtnText}</button>
+                                <button class="btn-del-hist" data-dwg="${safeDwgId}" onclick="deleteDrawingRow(event, ${d.rowIndex}, this.getAttribute('data-dwg'))">✕</button>
+                            </div>
+                        </div>
+                        <div class="process-dropdown" style="${isOpen ? 'display:block;' : 'display:none;'}">
+                            ${buildInlineProcessHtml(d)}
+                        </div>
+                    </div>`;
+            });
+            html += `</div></div>`;
+        });
+        list.innerHTML = html;
+    }
+
+    function clearForm() {
+        if(!confirm("確定要清空嗎？")) return;
+        document.getElementById('orderId').value = ""; 
+        document.getElementById('drawingId').value = "";
+        document.getElementById('orderQty').value = 50; 
+        document.getElementById('finalDeadline').value = ""; 
+        document.getElementById('processList').innerHTML = "";
+        document.getElementById('globalAlert').style.display = 'none';
+        
+        document.getElementById('multiplierToggleContainer').style.display = 'none';
+        document.getElementById('applyMultiplierCheck').checked = true;
+        handleQtyChange();
+        
+        addProcessCard();
+    }
+
+    window.onload = () => { loadHistory(); addProcessCard(); handleQtyChange(); };
+</script>
+</body>
+</html>
